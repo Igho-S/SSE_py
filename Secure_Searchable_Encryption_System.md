@@ -3,9 +3,9 @@
 
 ## Overview
 This system provides secure document storage with searchable encryption capabilities. It allows users to:
-- Store encrypted documents
+- Create encrypted documents
 - Search documents by keywords without decrypting the entire content
-- Share documents with other users
+- Share documents with other users on the system
 - Perform partial keyword searches
 
 The system uses modern cryptographic techniques including AES-GCM for encryption, PBKDF2 for key derivation, and HMAC for searchable keyword hashes.
@@ -112,17 +112,3 @@ Enable debug logging by changing:
 ```python
 logging.basicConfig(level=logging.DEBUG)
 ```
-
-## Limitations
-1. **Key Sharing**: Current implementation requires target user's KEK for sharing
-2. **Performance**: PBKDF2 key derivation is intentionally slow
-3. **Partial Matches**: Only supports trigram-based partial matching
-
-## Future Enhancements
-1. Implement asymmetric encryption for key sharing
-2. Add support for more complex search queries
-3. Improve performance with caching
-4. Add multi-factor authentication
-
-## License
-This project is licensed under the MIT License. See LICENSE file for details.
