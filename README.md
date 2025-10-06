@@ -1,196 +1,307 @@
-# SSE_py
-SSE implementation inspired by the SOPHOS scheme
+# Forward Privacy Searchable Encryption System
 
-# Secure Searchable Encryption (SSE) Database
+## Overview
 
-This project implements a **Secure Searchable Encryption (SSE)** database system using Python. The system enables encrypted storage and secure keyword-based search over encrypted documents. It combines SQLite for storage and cryptography for encryption and keyword hashing.
+The Forward Privacy Searchable Encryption System is a secure document management application designed to provide encrypted storage and searchable capabilities while ensuring forward privacy. It allows users to store, search, and retrieve documents securely, with features like session-based encryption, partial keyword search, and archive access control. The system uses AES-GCM for encryption, PBKDF2 for key derivation, and HMAC for searchable keyword hashes, ensuring robust security and privacy.
+
+This application is particularly suited for scenarios where sensitive data needs to be stored and searched securely, with the ability to rotate encryption keys (via sessions) to prevent access to old data after a session ends, thus implementing forward privacy.
 
 ## Features
 
-1. **Encrypted Document Storage**:
-   - AES-GCM encryption ensures confidentiality and integrity of the stored content.
+- **Encrypted Document Storage**: Documents are encrypted using AES-GCM with document-specific keys, which are themselves encrypted with session-specific keys.
+- **Searchable Encryption**: Keywords are hashed using HMAC-SHA256, allowing secure searches without decrypting the entire document.
+- **Partial Keyword Search**: Supports trigram-based partial keyword matching for flexible search capabilities.
+- **Forward Privacy**: Implements session-based key rotation to ensure that ending a session prevents access to documents from previous sessions unless explicitly unlocked.
+- **Archive Access Control**: Provides a separate archive passcode to access documents from previous sessions, enhancing security for archived data.
+- **Database Integration**: Uses a MySQL database (via a remote server) to store encrypted documents, session information, and access control data.
+- **User Authentication**: Secure user authentication with PBKDF2-derived keys and salt for each user.
+- **Session Management**: Allows users to view, end, and start new sessions to enforce forward privacy.
+- **Transaction Safety**: Uses database transactions to ensure data integrity during document operations.
 
-2. **Keyword-Based Search**:
-   - Uses HMAC-SHA256 for secure keyword hashing.
-   - Supports search without decrypting stored content.
+## Prerequisites
 
-3. **Document Management**:
-   - Add, delete, view, and list documents.
+To run this application, you need:
 
-4. **Secure Key Derivation**:
-   - Passphrase-based key generation using PBKDF2-HMAC-SHA256 with a unique salt per database.
-
-5. **SQLite Backend**:
-   - Persistent storage for encrypted documents and metadata.
-
-## How It Works
-
-1. **Encryption**:
-   - Documents are encrypted using AES-GCM with a derived encryption key.
-   - Random IVs and authentication tags ensure data integrity and uniqueness.
-
-2. **Keyword Hashing**:
-   - Keywords are hashed using HMAC with the encryption key.
-   - Only the hash is stored, enabling keyword search without revealing plaintext keywords.
-
-3. **Database Storage**:
-   - Documents, their encrypted contents, and keyword hashes are stored in SQLite tables.
-
-4. **Passphrase Protection**:
-   - User-provided passphrase is used to derive the encryption key.
-   - A unique salt ensures security against passphrase reuse.
+- **Python 3.7+**
+- **Required Python libraries**:
+  - `cryptography` (for encryption and key derivation)
+  - `requests` (for communicating with the database server)
+  - `getpass` (for secure passphrase input)
+- **MySQL Server**: A running MySQL server accessible via a REST API (as implemented by the server at `server_url`).
+- **Server Setup**: A corresponding server (not included in this code) that handles database operations via endpoints like `/connect`, `/execute_query`, etc.
+- **Network Access**: Ensure the client can reach the server URL provided during setup.
 
 ## Installation
 
-### Prerequisites
-
-- **Python 3.8+**
-- **Dependencies**:
-  Install the required Python packages:
-
-  ```bash
-  pip install cryptography
-  ```
-
-### Usage
-
-1. Clone or download the project.
-2. Save the code in a file (e.g., `secure_sse.py`).
-3. Run the script using:
+1. **Install Python dependencies**:
 
    ```bash
-   python secure_sse.py
+   pip install cryptography requests
    ```
 
-## Application Menu
+2. **Set up the MySQL database server**:
 
-When you run the script, you'll interact with a menu offering the following options:
+   - Ensure a MySQL server is running and accessible.
+   - Set up a REST API server (e.g., using Flask or FastAPI) that exposes endpoints for database operations (`/connect`, `/execute_query`, `/start_transaction`, `/commit`, `/rollback`, `/disconnect`).
+   - The server must handle MySQL queries and return results in JSON format.
 
-1. **Add Document**:
-   - Input a document ID, content, and associated keywords.
-   - Data is encrypted and stored securely.
+3. **Clone or download the code**:
 
-2. **Search Document**:
-   - Search for documents by a keyword.
-   - Returns matching document IDs without decrypting stored data.
+   - Save the provided `sse23c_mysql.py` file to your project directory.
 
-3. **Delete Document**:
-   - Remove a document from the database by its ID.
+## Usage
 
-4. **List Documents**:
-   - View all stored document IDs.
+1. **Run the application**:
 
-5. **View Document**:
-   - Decrypt and display the content of a document by its ID.
+   ```bash
+   python sse23c_mysql.py
+   ```
 
-6. **Exit**:
-   - Exit the application.
+2. **Initial Setup**:
 
-## Code Structure
+   - Enter the server URL: 
 
-### Classes
+     ```markdown
+     (http://23.26.156.65:9999)
+     ```
+   - Provide a user ID and main passphrase.
+   - For new users, optionally set an archive passcode to access documents from previous sessions.
 
-- **`SecureSearchableEncryption`**:
-  Implements the core functionality, including:
-  - Key derivation.
-  - Document encryption/decryption.
-  - Keyword hashing.
-  - SQLite integration.
+3. **Main Menu Options**:
 
-### Key Methods
+   - **Add Document**: Encrypt and store a document with associated keywords for searching.
+   - **Search Documents**: Search for documents containing a specific keyword (exact match).
+   - **Partial Search**: Search for documents with partial keyword matches using trigrams.
+   - **List Documents**: View all accessible documents, optionally including archived ones.
+   - **View Document**: Retrieve and decrypt a specific document by ID.
+   - **Delete Document**: Remove a document and its associated data.
+   - **Session Management**:
+     - View session information (current and archived sessions, document counts).
+     - End the current session to start a new one, enforcing forward privacy.
+   - **Archive Access**:
+     - Set or change the archive passcode.
+     - Unlock archive access to view documents from previous sessions.
+     - Lock archive access to restrict access to the current session.
+   - **Exit**: Disconnect from the server and exit the application.
 
-- **`add_document(doc_id, content, keywords)`**:
-  Encrypts and stores a document with associated keywords.
+4. **Security Notes**:
 
-- **`search_document(keyword)`**:
-  Searches for documents matching the hashed keyword.
+   - Ensure the main passphrase and archive passcode are strong and securely stored.
+   - Ending a session implements forward privacy, meaning documents from that session cannot be accessed without the archive passcode.
+   - The archive passcode is required to access documents from previous sessions.
 
-- **`delete_document(doc_id)`**:
-  Deletes a document by ID.
+## Database Schema
 
-- **`list_documents()`**:
-  Lists all stored document IDs.
+The application uses the following MySQL tables:
 
-- **`view_document2(doc_id)`**:
-  Decrypts and displays a document's content.
+- **users**:
 
-### Database Tables
+  - `user_id`: Unique identifier for the user.
+  - `salt`: Random salt for key derivation.
+  - `key_encryption_key`: PBKDF2-derived key for encrypting session keys.
+  - `archive_key_hash`: Hash of the archive passcode.
+  - `current_session_id`: ID of the current active session.
 
-1. **`settings`**:
-   - Stores the unique salt for key derivation.
+- **sessions**:
 
-2. **`documents`**:
-   - Stores encrypted content and hashed keywords.
+  - `session_id`: Unique identifier for a session.
+  - `user_id`: Foreign key to the user.
+  - `session_key_encrypted`: Session key encrypted with the user's key_encryption_key or archive key.
+  - `created_at`: Timestamp of session creation.
+  - `is_active`: Indicates if the session is active (1) or archived (0).
+
+- **documents**:
+
+  - `doc_id`: Unique identifier for a document.
+  - `session_id`: Foreign key to the session.
+  - `content`: Encrypted document content.
+  - `keyword_hashes`: Concatenated HMAC hashes of keywords.
+  - `created_at`: Timestamp of document creation.
+
+- **document_access**:
+
+  - `doc_id`: Foreign key to the document.
+  - `user_id`: Foreign key to the user.
+  - `session_id`: Foreign key to the session.
+  - `encrypted_key`: Document key encrypted with the session key.
+
+- **keyword_trigrams**:
+
+  - `doc_id`: Foreign key to the document.
+  - `session_id`: Foreign key to the session.
+  - `trigram_hash`: HMAC hash of a keyword trigram.
+  - `encrypted_position`: Encrypted position of the trigram in the keyword.
 
 ## Security Considerations
 
-- **Passphrase Management**:
-  Ensure a strong, unique passphrase is used.
+- **Encryption**: All sensitive data (document content, session keys, document keys) is encrypted using AES-GCM, which provides confidentiality and integrity.
+- **Key Derivation**: PBKDF2 with 600,000 iterations and SHA256 is used to derive keys from passphrases, providing strong resistance to brute-force attacks.
+- **Forward Privacy**: Session key rotation ensures that ending a session prevents access to previous documents unless the archive passcode is provided.
+- **Searchable Encryption**: Keyword hashes are generated using HMAC-SHA256 with session-specific keys, preventing keyword leakage across sessions.
+- **Partial Search**: Trigram-based search enables flexible matching while maintaining encryption.
+- **Error Handling**: The application includes robust error handling and transaction management to prevent data corruption.
 
-- **Database Backup**:
-  Backup the database file (`sse_secure.db`) securely.
+## Limitations
 
-- **Key Security**:
-  The encryption key is derived from the passphrase and is not stored.
+- **Archive Access**: Accessing archived documents requires the archive passcode, which must be securely managed.
+- **Performance**: Partial searches may be slower for large datasets due to trigram-based matching.
 
-- **Salt**:
-  A unique salt prevents pre-computation attacks.
+## Contributing
 
-## Example Usage
+Contributions are welcome! Please submit pull requests or open issues on the project's repository (if applicable) for bug reports, feature requests, or improvements.
 
-1. **Add a Document**:
+## 
 
-   Input:
-   ```
-   Enter document ID: doc123
-   Enter document content: Secure content
-   Enter keywords (comma-separated): secret, sensitive
-   ```
+---
 
-   Output:
-   ```
-   Document doc123 added successfully.
-   ```
+# Система шифрования с возможностью поиска и прямой приватностью
 
-2. **Search for a Document**:
+## Обзор
 
-   Input:
-   ```
-   Enter keyword to search for: secret
-   ```
+Система шифрования с возможностью поиска и прямой приватностью — это безопасное приложение для управления документами, обеспечивающее зашифрованное хранение и поиск с поддержкой прямой приватности. Оно позволяет пользователям безопасно хранить, искать и извлекать документы с использованием таких функций, как шифрование на основе сессий, частичный поиск по ключевым словам и контроль доступа к архивам. Система использует AES-GCM для шифрования, PBKDF2 для генерации ключей и HMAC для создания хэшей ключевых слов, обеспечивая надежную безопасность и конфиденциальность.
 
-   Output:
-   ```
-   Documents containing the keyword:
-   - doc123
-   ```
+Это приложение особенно подходит для сценариев, где необходимо безопасно хранить и искать конфиденциальные данные, с возможностью ротации ключей шифрования (через сессии), чтобы предотвратить доступ к старым данным после завершения сессии, реализуя прямую приватность.
 
-3. **View a Document**:
+## Особенности
 
-   Input:
-   ```
-   Enter document ID to view: doc123
-   ```
+- **Зашифрованное хранение документов**: Документы шифруются с помощью AES-GCM с использованием уникальных ключей для каждого документа, которые, в свою очередь, шифруются с помощью сессионных ключей.
+- **Шифрование с возможностью поиска**: Ключевые слова хэшируются с использованием HMAC-SHA256, что позволяет выполнять безопасный поиск без расшифровки всего документа.
+- **Частичный поиск по ключевым словам**: Поддержка поиска на основе триграмм для гибкого соответствия.
+- **Прямая приватность**: Реализация ротации ключей на основе сессий гарантирует, что завершение сессии предотвращает доступ к документам из предыдущих сессий без явной разблокировки.
+- **Контроль доступа к архивам**: Отдельный пароль для доступа к архивам обеспечивает дополнительную безопасность для архивных данных.
+- **Интеграция с базой данных**: Используется база данных MySQL (через удаленный сервер) для хранения зашифрованных документов, информации о сессиях и данных контроля доступа.
+- **Аутентификация пользователей**: Безопасная аутентификация пользователей с использованием ключей, сгенерированных с помощью PBKDF2, и соли для каждого пользователя.
+- **Управление сессиями**: Позволяет пользователям просматривать, завершать и начинать новые сессии для обеспечения прямой приватности.
+- **Безопасность транзакций**: Используются транзакции базы данных для обеспечения целостности данных во время операций с документами.
 
-   Output:
-   ```
-   Content of 'doc123':
-   Secure content
-   ```
+## Требования
 
-4. **Delete a Document**:
+Для работы приложения необходимы:
 
-   Input:
-   ```
-   Enter document ID to delete: doc123
-   ```
+- **Python 3.7+**
+- **Необходимые библиотеки Python**:
+  - `cryptography` (для шифрования и генерации ключей)
+  - `requests` (для взаимодействия с сервером базы данных)
+  - `getpass` (для безопасного ввода паролей)
+- **Сервер MySQL**: Запущенный сервер MySQL, доступный через REST API (реализованный на сервере по адресу `server_url`).
+- **Настройка сервера**: Соответствующий сервер (не включен в этот код), который обрабатывает операции с базой данных через конечные точки, такие как `/connect`, `/execute_query` и т.д.
+- **Сетевой доступ**: Убедитесь, что клиент может связаться с сервером по указанному URL.
 
-   Output:
-   ```
-   Document doc123 deleted successfully.
+## Установка
+
+1. **Установите зависимости Python**:
+
+   ```bash
+   pip install cryptography requests
    ```
 
-## Notes
+2. **Настройте сервер базы данных MySQL**:
 
-- The application does not support passphrase recovery.
-- Use secure storage practices for the `sse_secure.db` file.
+   - Убедитесь, что сервер MySQL запущен и доступен.
+   - Настройте сервер REST API (например, с использованием Flask или FastAPI), который предоставляет конечные точки для операций с базой данных (`/connect`, `/execute_query`, `/start_transaction`, `/commit`, `/rollback`, `/disconnect`).
+   - Сервер должен обрабатывать запросы MySQL и возвращать результаты в формате JSON.
+
+3. **Склонируйте или загрузите код**:
+
+   - Сохраните предоставленный файл `sse23c_mysql.py` в директорию вашего проекта.
+
+## Использование
+
+1. **Запустите приложение**:
+
+   ```bash
+   python sse23c_mysql.py
+   ```
+
+2. **Начальная настройка**:
+
+   - Введите URL сервера 
+
+     ```markdown
+     (http://23.26.156.65:9999)
+     ```
+   - Укажите идентификатор пользователя и основной пароль.
+   - Для новых пользователей можно дополнительно установить пароль для доступа к архивам, чтобы получить доступ к документам из предыдущих сессий.
+
+3. **Опции главного меню**:
+
+   - **Добавить документ**: Зашифровать и сохранить документ с соответствующими ключевыми словами для поиска.
+   - **Поиск документов**: Поиск документов, содержащих определенное ключевое слово (точное совпадение).
+   - **Частичный поиск**: Поиск документов с частичным совпадением ключевых слов с использованием триграмм.
+   - **Список документов**: Просмотр всех доступных документов, с возможностью включения архивных.
+   - **Просмотр документа**: Извлечение и расшифровка определенного документа по идентификатору.
+   - **Удаление документа**: Удаление документа и связанных с ним данных.
+   - **Управление сессиями**:
+     - Просмотр информации о сессиях (текущая и архивные сессии, количество документов).
+     - Завершение текущей сессии и начало новой для обеспечения прямой приватности.
+   - **Доступ к архивам**:
+     - Установка или изменение пароля для доступа к архивам.
+     - Разблокировка доступа к архивам для просмотра документов из предыдущих сессий.
+     - Блокировка доступа к архивам для ограничения доступа только к текущей сессии.
+   - **Выход**: Отключение от сервера и завершение работы приложения.
+
+4. **Заметки по безопасности**:
+
+   - Убедитесь, что основной пароль и пароль для доступа к архивам надежны и хранятся безопасно.
+   - Завершение сессии реализует прямую приватность, что означает, что документы из этой сессии недоступны без пароля для архива.
+   - Для доступа к документам из предыдущих сессий требуется пароль для архива.
+
+## Схема базы данных
+
+Приложение использует следующие таблицы MySQL:
+
+- **users**:
+
+  - `user_id`: Уникальный идентификатор пользователя.
+  - `salt`: Случайная соль для генерации ключей.
+  - `key_encryption_key`: Ключ, сгенерированный с помощью PBKDF2, для шифрования сессионных ключей.
+  - `archive_key_hash`: Хэш пароля для доступа к архивам.
+  - `current_session_id`: Идентификатор текущей активной сессии.
+
+- **sessions**:
+
+  - `session_id`: Уникальный идентификатор сессии.
+  - `user_id`: Внешний ключ на пользователя.
+  - `session_key_encrypted`: Сессионный ключ, зашифрованный с помощью `key_encryption_key` или ключа архива.
+  - `created_at`: Временная метка создания сессии.
+  - `is_active`: Указывает, активна ли сессия (1) или заархивирована (0).
+
+- **documents**:
+
+  - `doc_id`: Уникальный идентификатор документа.
+  - `session_id`: Внешний ключ на сессию.
+  - `content`: Зашифрованное содержимое документа.
+  - `keyword_hashes`: Конкатенированные HMAC-хэши ключевых слов.
+  - `created_at`: Временная метка создания документа.
+
+- **document_access**:
+
+  - `doc_id`: Внешний ключ на документ.
+  - `user_id`: Внешний ключ на пользователя.
+  - `session_id`: Внешний ключ на сессию.
+  - `encrypted_key`: Ключ документа, зашифрованный с помощью сессионного ключа.
+
+- **keyword_trigrams**:
+
+  - `doc_id`: Внешний ключ на документ.
+  - `session_id`: Внешний ключ на сессию.
+  - `trigram_hash`: HMAC-хэш триграммы ключевого слова.
+  - `encrypted_position`: Зашифрованная позиция триграммы в ключевом слове.
+
+## Соображения безопасности
+
+- **Шифрование**: Все конфиденциальные данные (содержимое документов, сессионные ключи, ключи документов) шифруются с использованием AES-GCM, что обеспечивает конфиденциальность и целостность.
+- **Генерация ключей**: PBKDF2 с 600 000 итераций и SHA256 используется для генерации ключей из паролей, обеспечивая высокую устойчивость к атакам перебора.
+- **Прямая приватность**: Ротация сессионных ключей гарантирует, что завершение сессии предотвращает доступ к предыдущим документам без пароля для архива.
+- **Шифрование с возможностью поиска**: Хэши ключевых слов генерируются с использованием HMAC-SHA256 с сессионными ключами, предотвращая утечку ключевых слов между сессиями.
+- **Частичный поиск**: Поиск на основе триграмм обеспечивает гибкое соответствие при сохранении шифрования.
+- **Обработка ошибок**: Приложение включает надежную обработку ошибок и управление транзакциями для предотвращения повреждения данных.
+
+## Ограничения
+
+- **Доступ к архивам**: Для доступа к архивным документам требуется пароль для архива, который должен быть безопасно сохранен.
+- **Производительность**: Частичный поиск может быть медленнее для больших наборов данных из-за соответствия на основе триграмм.
+
+## Вклад в проект
+
+Приветствуются любые вклады! Пожалуйста, отправляйте запросы на включение или открывайте вопросы в репозитории проекта (если применимо) для сообщений об ошибках, запросов новых функций или улучшений.
