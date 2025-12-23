@@ -152,7 +152,6 @@ Please submit pull requests or open issues on the project's repository (if appli
 
 ## 
 
----
 # Russian
 
 # Система шифрования с возможностью поиска и прямой приватностью
